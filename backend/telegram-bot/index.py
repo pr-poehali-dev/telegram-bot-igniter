@@ -18,31 +18,42 @@ def get_db_connection():
 
 def send_telegram_message(chat_id: int, text: str, reply_markup: Optional[Dict] = None):
     import urllib.request
-    import urllib.parse
     
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    if not bot_token:
+        print("Error: TELEGRAM_BOT_TOKEN not set")
+        return None
+    
     url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
     
-    data = {
+    payload = {
         'chat_id': chat_id,
         'text': text,
         'parse_mode': 'HTML'
     }
     
     if reply_markup:
-        data['reply_markup'] = json.dumps(reply_markup)
+        payload['reply_markup'] = reply_markup
+    
+    data = json.dumps(payload).encode('utf-8')
     
     req = urllib.request.Request(
         url,
-        data=json.dumps(data).encode('utf-8'),
-        headers={'Content-Type': 'application/json'}
+        data=data,
+        headers={'Content-Type': 'application/json'},
+        method='POST'
     )
     
     try:
         with urllib.request.urlopen(req) as response:
-            return json.loads(response.read().decode('utf-8'))
+            result = json.loads(response.read().decode('utf-8'))
+            return result
+    except urllib.request.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        print(f"Telegram API Error {e.code}: {error_body}")
+        return None
     except Exception as e:
-        print(f"Error sending message: {e}")
+        print(f"Error sending message: {type(e).__name__}: {e}")
         return None
 
 def get_or_create_user(conn, telegram_user: Dict) -> int:
